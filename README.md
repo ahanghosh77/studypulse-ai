@@ -32,7 +32,7 @@ Built specifically for engineering and CS students tackling tough 3rd-semester s
 
 1. Clone or download this repository:
    ```bash
-   git clone https://github.com/ahang1/studypulse-ai.git
+   git clone https://github.com/ahanghosh77/studypulse-ai.git
    cd studypulse-ai
    ```
 
