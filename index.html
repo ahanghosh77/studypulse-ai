@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>StudyPulse AI — Open-Weight Semester Study & Flashcard Companion</title>
+  <meta name="description" content="An offline-first, private study assistant that turns dense lecture notes into active recall flashcards, practice quizzes, and intuitive analogies using open-weight AI.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="app-container">
+    <!-- Header -->
+    <header class="header">
+      <div class="brand">
+        <div class="logo-badge">
+          <span class="logo-icon">⚡</span>
+        </div>
+        <div>
+          <h1 class="brand-title">StudyPulse <span class="gradient-text">AI</span></h1>
+          <p class="brand-subtitle">Private Open-Weight Note-to-Flashcard & Exam Prep Assistant</p>
+        </div>
+      </div>
+      <div class="header-badges">
+        <span class="badge badge-hf">🍂 Hacktoberfest 2026</span>
+        <button id="ai-settings-toggle" class="btn btn-secondary btn-sm" title="Configure Local AI Model">
+          <span class="icon">⚙️</span> Local AI Model: <strong id="current-model-label">Open-Weight (Ollama / Local)</strong>
+        </button>
+      </div>
+    </header>
+
+    <!-- Model Settings Modal -->
+    <div id="settings-modal" class="modal-backdrop hidden">
+      <div class="modal-card">
+        <div class="modal-header">
+          <h3 class="modal-title">🤖 Local Open-Weight AI Configuration</h3>
+          <button id="close-settings-btn" class="btn-icon">&times;</button>
+        </div>
+        <div class="modal-body">
+          <p class="text-muted text-sm">
+            StudyPulse connects directly to local open-weight models (via Ollama or any OpenAI-compatible API) so lecture notes never leave your computer.
+          </p>
+
+          <div class="form-group">
+            <label for="ai-provider-select">Inference Mode</label>
+            <select id="ai-provider-select" class="form-input">
+              <option value="ollama">Ollama (Local Open-Weight: Gemma 2 / Llama 3 / Mistral)</option>
+              <option value="custom">Custom Local Endpoint (LM Studio / vLLM / LocalAI)</option>
+              <option value="offline-smart">Built-in Offline Smart Parser (Zero Setup Required)</option>
+            </select>
+          </div>
+
+          <div class="form-group" id="endpoint-group">
+            <label for="api-endpoint-input">API Endpoint URL</label>
+            <input type="text" id="api-endpoint-input" class="form-input" value="http://localhost:11434/api/generate">
+            <span class="helper-text">Default for Ollama is <code>http://localhost:11434/api/generate</code></span>
+          </div>
+
+          <div class="form-group" id="model-name-group">
+            <label for="model-name-input">Model Name</label>
+            <input type="text" id="model-name-input" class="form-input" value="gemma2:2b">
+            <span class="helper-text">Examples: <code>gemma2:2b</code>, <code>llama3.2:3b</code>, <code>qwen2.5:3b</code></span>
+          </div>
+
+          <div class="status-box" id="model-status-box">
+            <span class="status-indicator ready"></span>
+            <span id="model-status-text">Ready for generation</span>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button id="save-settings-btn" class="btn btn-primary">Save Settings</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Main Content Grid -->
+    <main class="main-layout">
+      <!-- Left Column: Input Notes & Controls -->
+      <section class="panel input-panel">
+        <div class="panel-header">
+          <h2>📝 Lecture Notes & Materials</h2>
+          <div class="sample-pills">
+            <span class="pill-label">Quick Samples:</span>
+            <button class="pill" data-sample="os">OS: Deadlocks</button>
+            <button class="pill" data-sample="ds">Data Structures: Trees</button>
+            <button class="pill" data-sample="db">DBMS: ACID & Normalization</button>
+          </div>
+        </div>
+
+        <div class="textarea-container">
+          <textarea id="notes-input" placeholder="Paste your raw semester notes, professor slides, textbook paragraphs, or discussion points here..."></textarea>
+          <div class="textarea-footer">
+            <span id="char-count" class="text-xs text-muted">0 characters</span>
+            <button id="clear-notes-btn" class="btn-text text-xs">Clear</button>
+          </div>
+        </div>
+
+        <!-- Output Settings -->
+        <div class="generation-controls">
+          <div class="control-row">
+            <div class="control-item">
+              <label for="card-count-slider">Cards to Generate: <strong id="card-count-val">6</strong></label>
+              <input type="range" id="card-count-slider" min="3" max="15" value="6">
+            </div>
+            <div class="control-item">
+              <label for="mode-select">Study Mode</label>
+              <select id="mode-select" class="form-input">
+                <option value="flashcards">🗂️ Active Recall Flashcards</option>
+                <option value="exam-quiz">🎯 Exam Practice Quiz</option>
+                <option value="eli5">💡 ELI5 & Intuitive Analogies</option>
+                <option value="cheatsheet">📌 High-Yield Exam Cheatsheet</option>
+              </select>
+            </div>
+          </div>
+
+          <button id="generate-btn" class="btn btn-primary btn-block btn-lg">
+            <span class="btn-icon">⚡</span>
+            <span id="generate-btn-text">Generate Active Recall Deck</span>
+          </button>
+        </div>
+      </section>
+
+      <!-- Right Column: Interactive Study Space -->
+      <section class="panel output-panel">
+        <div class="panel-header">
+          <h2>🎓 Active Study Space</h2>
+          <div class="deck-actions" id="deck-actions">
+            <button id="btn-export-anki" class="btn btn-secondary btn-sm" title="Export as Anki-ready TSV">
+              📥 Export Anki
+            </button>
+            <button id="btn-export-md" class="btn btn-secondary btn-sm" title="Export as Markdown notes">
+              📄 Export MD
+            </button>
+          </div>
+        </div>
+
+        <!-- Empty State -->
+        <div id="empty-state" class="empty-state">
+          <div class="empty-icon">📚</div>
+          <h3>No study cards yet</h3>
+          <p class="text-muted">
+            Paste your lecture notes or click one of the quick samples on the left, then hit <strong>Generate</strong> to transform notes into high-retention active recall material.
+          </p>
+          <div class="feature-highlights">
+            <div class="feat-card">
+              <span class="feat-icon">🔒</span>
+              <strong>100% Private</strong>
+              <span>Runs with local open-weight AI; your university notes never touch corporate cloud servers.</span>
+            </div>
+            <div class="feat-card">
+              <span class="feat-icon">🧠</span>
+              <strong>Active Recall</strong>
+              <span>Combines Q&amp;A testing, conceptual mnemonics, and instant self-evaluations.</span>
+            </div>
+            <div class="feat-card">
+              <span class="feat-icon">✈️</span>
+              <strong>Offline Capable</strong>
+              <span>Study in the library, campus transit, or offline dorms with zero internet needed.</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Loading State -->
+        <div id="loading-state" class="loading-state hidden">
+          <div class="pulsing-brain">🧠</div>
+          <h3 id="loading-title">Synthesizing with Open-Weight AI...</h3>
+          <p class="text-muted" id="loading-sub">Analyzing key concepts, isolating definitions, and structuring recall cues</p>
+          <div class="progress-bar-container">
+            <div class="progress-bar-fill"></div>
+          </div>
+        </div>
+
+        <!-- Flashcards View -->
+        <div id="flashcards-container" class="study-view hidden">
+          <div class="deck-progress">
+            <span id="deck-counter">Card 1 of 6</span>
+            <div class="deck-progress-bar">
+              <div id="deck-progress-fill" class="deck-progress-fill" style="width: 16%;"></div>
+            </div>
+            <span id="mastery-score" class="mastery-badge">Mastered: 0</span>
+          </div>
+
+          <!-- 3D Flippable Card -->
+          <div class="card-scene">
+            <div id="flashcard" class="flashcard">
+              <div class="card-face card-front">
+                <div class="card-tag" id="card-tag">Core Concept</div>
+                <div class="card-content">
+                  <p id="card-question" class="card-text">Question goes here</p>
+                </div>
+                <div class="card-hint">
+                  <span class="hint-icon">🔄</span> Click or press Space to flip
+                </div>
+              </div>
+              <div class="card-face card-back">
+                <div class="card-tag tag-answer">Answer &amp; Breakdown</div>
+                <div class="card-content">
+                  <p id="card-answer" class="card-text">Answer goes here</p>
+                  <div id="card-analogy-box" class="card-analogy">
+                    <strong>💡 Intuitive Analogy:</strong>
+                    <span id="card-analogy-text">Analogy text</span>
+                  </div>
+                </div>
+                <div class="card-hint">
+                  <span class="hint-icon">🔄</span> Click to flip back
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Review Controls -->
+          <div class="card-nav-controls">
+            <button id="btn-prev" class="btn btn-secondary">← Previous</button>
+            <div class="rating-buttons">
+              <button id="btn-review-again" class="btn btn-danger btn-sm">🔁 Needs Review</button>
+              <button id="btn-mastered" class="btn btn-success btn-sm">✅ Mastered</button>
+            </div>
+            <button id="btn-next" class="btn btn-secondary">Next →</button>
+          </div>
+
+          <!-- All Cards Grid Preview -->
+          <div class="deck-overview-section">
+            <div class="section-title-row">
+              <h4>Full Deck Overview (<span id="overview-count">0</span> cards)</h4>
+              <button id="toggle-overview-btn" class="btn-text text-xs">Toggle List</button>
+            </div>
+            <div id="cards-grid" class="cards-grid"></div>
+          </div>
+        </div>
+
+        <!-- Quiz View -->
+        <div id="quiz-container" class="study-view hidden">
+          <div class="quiz-header">
+            <span id="quiz-progress-text">Question 1 of 5</span>
+            <span id="quiz-score-badge" class="badge">Score: 0 / 0</span>
+          </div>
+          <div class="quiz-card">
+            <h3 id="quiz-question-text" class="quiz-question">Question</h3>
+            <div id="quiz-options-list" class="quiz-options"></div>
+            <div id="quiz-feedback-box" class="quiz-feedback hidden">
+              <p id="quiz-feedback-text"></p>
+              <button id="quiz-next-btn" class="btn btn-primary btn-sm">Next Question →</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Cheatsheet / ELI5 View -->
+        <div id="text-view-container" class="study-view hidden">
+          <div class="cheatsheet-card" id="cheatsheet-content"></div>
+        </div>
+      </section>
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer">
+      <div class="footer-col">
+        <p>Built for the <strong>Hacktoberfest 2026 Weekend Challenge</strong>: <em>"Build for a Friend"</em></p>
+        <p class="text-xs text-muted">Dedicated to my 3rd-semester classmate navigating tough engineering concepts with open-source AI.</p>
+      </div>
+      <div class="footer-col text-right">
+        <p class="text-xs text-muted">Powered by Open-Weight Models · Local Inference · Zero Cloud Telemetry</p>
+      </div>
+    </footer>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
